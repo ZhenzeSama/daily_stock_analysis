@@ -45,6 +45,9 @@ jobs:
           LITELLM_MODEL: ${{ secrets.LITELLM_MODEL }}
           # 推送
           WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+          # 搜索渠道（新闻面证据）
+          TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
+          BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
           # 美股自选股（可自行修改）
           STOCK_LIST: AAPL,NVDA,MU,TSLA,MSFT,GOOGL,META,AMD,PLTR
           # 大盘复盘只看美股

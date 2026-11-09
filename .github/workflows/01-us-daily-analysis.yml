@@ -1,0 +1,75 @@
+name: 美股早间分析
+
+on:
+  # 定时触发 - 北京时间每天早上 07:00（UTC 23:00 前一日）
+  # 对应美股周一到周五的收盘数据，北京周二~周六早上收到
+  schedule:
+    - cron: '0 23 * * 1-5'
+
+  # 手动触发
+  workflow_dispatch:
+
+concurrency:
+  group: us-stock-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 创建必要目录
+        run: mkdir -p data logs reports
+
+      - name: 执行美股分析
+        env:
+          TZ: Asia/Shanghai
+          NOTIFICATION_TIMEZONE: Asia/Shanghai
+          # AI 模型
+          AIHUBMIX_KEY: ${{ secrets.AIHUBMIX_KEY }}
+          LITELLM_MODEL: ${{ secrets.LITELLM_MODEL }}
+          # 推送
+          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+          # 美股自选股（可自行修改）
+          STOCK_LIST: AAPL,NVDA,MU,TSLA,MSFT,GOOGL,META,AMD,PLTR
+          # 大盘复盘只看美股
+          MARKET_REVIEW_ENABLED: 'true'
+          MARKET_REVIEW_REGION: us
+        run: python main.py
+
+      - name: 上传分析报告
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: us-analysis-reports-${{ github.run_number }}
+          path: |
+            reports/
+            logs/
+          retention-days: 30
+
+      - name: 显示运行结果
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "美股分析完成"
+          echo "=========================================="
+          if [ -d "reports" ] && [ "$(ls -A reports 2>/dev/null)" ]; then
+            ls -la reports/
+          else
+            echo "未生成报告文件"
+          fi

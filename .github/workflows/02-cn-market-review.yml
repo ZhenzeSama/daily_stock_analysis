@@ -1,0 +1,59 @@
+name: A股大盘复盘
+
+on:
+  # 定时触发 - 北京时间每天 18:00（UTC 10:00），A 股收盘后
+  # 只做大盘复盘，不分析个股
+  schedule:
+    - cron: '0 10 * * 1-5'
+
+  workflow_dispatch:
+
+concurrency:
+  group: cn-market-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 创建必要目录
+        run: mkdir -p data logs reports
+
+      - name: 执行A股大盘复盘
+        env:
+          TZ: Asia/Shanghai
+          NOTIFICATION_TIMEZONE: Asia/Shanghai
+          AIHUBMIX_KEY: ${{ secrets.AIHUBMIX_KEY }}
+          LITELLM_MODEL: ${{ secrets.LITELLM_MODEL }}
+          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+          TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
+          BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
+          MARKET_REVIEW_ENABLED: 'true'
+          MARKET_REVIEW_REGION: cn
+        run: python main.py --market-review
+
+      - name: 上传复盘报告
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: cn-market-review-${{ github.run_number }}
+          path: |
+            reports/
+            logs/
+          retention-days: 30
